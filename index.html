@@ -70,7 +70,7 @@ tr:last-child td{border-bottom:none}
 .b-ing{background:var(--green-bg);color:var(--green)}
 .b-gas{background:var(--red-bg);color:var(--red)}
 .b-bci{background:var(--blue-bg);color:var(--blue)}
-.b-itau{background:var(--red-bg);color:var(--red)}
+.b-Falabella{background:var(--red-bg);color:var(--red)}
 .amt-ing{color:var(--green);font-weight:500}
 .amt-gas{color:var(--red);font-weight:500}
 .btn-del{background:none;border:none;color:var(--muted);cursor:pointer;font-size:15px;padding:2px 6px;border-radius:4px}
@@ -82,7 +82,7 @@ tr:last-child td{border-bottom:none}
 .tdc-box{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1rem 1.25rem}
 .cupo-bar{height:5px;background:var(--border);border-radius:3px;margin:8px 0 4px;overflow:hidden}
 .cupo-fill{height:100%;border-radius:3px}
-.fill-bci{background:#378ADD}.fill-itau{background:#D85A30}
+.fill-bci{background:#378ADD}.fill-Falabella{background:#D85A30}
 .cupo-labels{display:flex;justify-content:space-between;font-size:11px;color:var(--muted)}
 .mes-nav{display:flex;align-items:center;gap:10px;margin-bottom:1rem}
 .mes-nav button{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px 14px;cursor:pointer;font-size:13px;color:var(--text)}
@@ -211,7 +211,7 @@ tr:last-child td{border-bottom:none}
       <div class="card-header"><span class="card-title">Compras vigentes</span><button class="btn-sm" onclick="toggleXform('cf')">+ Nueva compra</button></div>
       <div class="xform" id="cf">
         <div class="form-grid">
-          <div class="form-group"><label>Tarjeta</label><select id="cf-t"><option>BCI</option><option>ITAU</option></select></div>
+          <div class="form-group"><label>Tarjeta</label><select id="cf-t"><option>BCI</option><option>Falabella</option></select></div>
           <div class="form-group"><label>Descripcion</label><input type="text" id="cf-d" placeholder="Ej: Televisor"></div>
           <div class="form-group"><label>Monto por cuota ($)</label><input type="number" id="cf-m" placeholder="0"></div>
           <div class="form-group"><label>N cuotas restantes</label><input type="number" id="cf-n" placeholder="1" min="1"></div>
@@ -225,7 +225,7 @@ tr:last-child td{border-bottom:none}
         <div class="msg" id="cf-msg"></div>
       </div>
       <div class="sec-sub">BCI</div><div class="plist" id="pl-bci"></div>
-      <div class="sec-sub" style="margin-top:1rem">ITAU</div><div class="plist" id="pl-itau"></div>
+      <div class="sec-sub" style="margin-top:1rem">Falabella</div><div class="plist" id="pl-Falabella"></div>
     </div>
     <div id="tab-inv" class="section">
       <div class="card">
@@ -483,7 +483,7 @@ async function loadTDC(){
       compras:[],
       cupos:{
         BCI:{nacional:4320000},
-        ITAU:{nacional:3400000}
+        Falabella:{nacional:3400000}
       },
       last_id:0
     };
@@ -502,7 +502,7 @@ function montoTot(c){return(c.cuotas||[]).filter(q=>q.mes>=tdcMes).reduce((s,q)=
 function renderTDC(){renderTDCCards();renderTDCMes();renderTDCTL();renderTDCPend();}
 function renderTDCCards(){
   let h='';
-  for(const t of['BCI','ITAU']){
+  for(const t of['BCI','Falabella']){
     const comp=(T.compras||[]).filter(c=>c.tarjeta==t&&c.activa);
     const pend=comp.reduce((s,c)=>s+montoTot(c),0);
     const mes=getCuotasMes(tdcMes).filter(c=>c.tarjeta==t).reduce((s,c)=>s+c.mm,0);
@@ -531,7 +531,7 @@ function renderTDCMes(){
     g+='<div class="cuota-sub"><span>Subtotal</span><span style="color:'+col+'">'+fmt(sub)+'</span></div>';
     return g;
   };
-  let h=rg(cq.filter(c=>c.tarjeta=='BCI'),'BCI','#185FA5')+rg(cq.filter(c=>c.tarjeta=='ITAU'),'ITAU','#D85A30');
+  let h=rg(cq.filter(c=>c.tarjeta=='BCI'),'BCI','#185FA5')+rg(cq.filter(c=>c.tarjeta=='Falabella'),'Falabella','#D85A30');
   const tot=cq.reduce((s,c)=>s+c.mm,0);
   h+='<div class="cuota-sub" style="font-size:15px;border-top:2px solid var(--border);margin-top:8px"><span>TOTAL</span><span>'+fmt(tot)+'</span></div>';
   el.innerHTML=h;
@@ -542,13 +542,13 @@ function renderTDCTL(){
     const d=new Date(y,m-1+i,1);
     const ms=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
     const bci=getCuotasMes(ms).filter(c=>c.tarjeta=='BCI').reduce((s,c)=>s+c.mm,0);
-    const itau=getCuotasMes(ms).filter(c=>c.tarjeta=='ITAU').reduce((s,c)=>s+c.mm,0);
-    h+='<div class="tcell'+(ms==tdcMes?' now':'')+'"><div class="tl">'+MN[d.getMonth()]+' '+String(d.getFullYear()).slice(2)+'</div><div class="tb">'+(bci?'$'+Math.round(bci/1000)+'k':'&#8212;')+'</div><div class="ti">'+(itau?'$'+Math.round(itau/1000)+'k':'&#8212;')+'</div><div class="tt">'+(bci+itau?'$'+Math.round((bci+itau)/1000)+'k':'&#8212;')+'</div></div>';
+    const Falabella=getCuotasMes(ms).filter(c=>c.tarjeta=='Falabella').reduce((s,c)=>s+c.mm,0);
+    h+='<div class="tcell'+(ms==tdcMes?' now':'')+'"><div class="tl">'+MN[d.getMonth()]+' '+String(d.getFullYear()).slice(2)+'</div><div class="tb">'+(bci?'$'+Math.round(bci/1000)+'k':'&#8212;')+'</div><div class="ti">'+(Falabella?'$'+Math.round(Falabella/1000)+'k':'&#8212;')+'</div><div class="tt">'+(bci+Falabella?'$'+Math.round((bci+Falabella)/1000)+'k':'&#8212;')+'</div></div>';
   }
   document.getElementById('tdc-tl').innerHTML=h;
 }
 function renderTDCPend(){
-  ['BCI','ITAU'].forEach(t=>{
+  ['BCI','Falabella'].forEach(t=>{
     const el=document.getElementById('pl-'+t.toLowerCase());
     const comp=(T.compras||[]).filter(c=>c.tarjeta==t&&c.activa);
     if(!comp.length){el.innerHTML='<div style="font-size:13px;color:var(--muted);padding:8px">Sin compras vigentes</div>';return;}
