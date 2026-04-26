@@ -21,6 +21,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .form-group label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px}
 .form-group input,.form-group select{width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--bg);color:var(--text)}
 .btn-save{padding:10px 28px;background:var(--text);color:white;border:none;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer}
+.btn-sec{padding:10px 28px;background:transparent;border:1px solid var(--border);color:var(--text);border-radius:8px;font-size:14px;cursor:pointer}
 .metrics{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
 .metric{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1rem}
 .metric-label{font-size:12px;color:var(--muted);margin-bottom:4px}
@@ -30,6 +31,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .detail-label{font-size:12px;color:var(--muted);margin-bottom:4px}
 .detail-value{font-size:16px;font-weight:600}
 .result-box{background:var(--blue-bg);border-radius:8px;padding:1rem;color:var(--blue);line-height:1.6}
+.empty{color:var(--muted);font-size:14px;padding:1rem 0}
+.msg{margin-top:8px;font-size:13px;padding:8px 12px;border-radius:6px;display:none}
+.msg.ok{background:var(--green-bg);color:var(--green);display:block}
+.msg.err{background:var(--red-bg);color:var(--red);display:block}
 #grafico-prepago{margin-top:12px;max-height:280px}
 @media(max-width:580px){
   .app-header{flex-direction:column;align-items:flex-start}
@@ -61,6 +66,50 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     </div>
   </div>
 
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Configurar credito</span>
+    </div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Tipo</label>
+        <select id="cfg-tipo" onchange="cargarFormularioCredito()">
+          <option value="hipotecario">Hipotecario</option>
+          <option value="consumo">Consumo</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Banco o entidad</label>
+        <input type="text" id="cfg-banco" placeholder="Ej: Scotiabank">
+      </div>
+      <div class="form-group">
+        <label id="cfg-saldo-lbl">Saldo total</label>
+        <input type="number" id="cfg-saldo" placeholder="0" min="0" step="0.01">
+      </div>
+      <div class="form-group">
+        <label id="cfg-cuota-lbl">Cuota mensual</label>
+        <input type="number" id="cfg-cuota" placeholder="0" min="0" step="0.01">
+      </div>
+      <div class="form-group">
+        <label>Interes mensual (%)</label>
+        <input type="number" id="cfg-tasa" placeholder="0" min="0" step="0.01">
+      </div>
+      <div class="form-group">
+        <label>Total cuotas</label>
+        <input type="number" id="cfg-total" placeholder="0" min="0" step="1">
+      </div>
+      <div class="form-group">
+        <label>Cuotas ya pagadas base</label>
+        <input type="number" id="cfg-pagadas" placeholder="0" min="0" step="1">
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:1rem;flex-wrap:wrap">
+      <button class="btn-save" onclick="guardarCredito()">Guardar credito</button>
+      <button class="btn-sec" onclick="limpiarCredito()">Limpiar</button>
+    </div>
+    <div class="msg" id="cfg-msg"></div>
+  </div>
+
   <div id="resumen"></div>
   <div class="card" id="hipotecario"></div>
   <div class="card" id="consumo"></div>
@@ -73,8 +122,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       <div class="form-group">
         <label>Credito a amortizar</label>
         <select id="credito-select">
-          <option value="hipotecario">Hipotecario - Scotiabank</option>
-          <option value="consumo">Consumo - BCI</option>
+          <option value="hipotecario">Hipotecario</option>
+          <option value="consumo">Consumo</option>
         </select>
       </div>
       <div class="form-group">
@@ -102,33 +151,46 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
 <script>
 const creditoHipotecario={
-  banco:"Scotiabank",
-  saldoUF:2235.4922,
-  cuotaUF:12.9883,
-  tasa:4.98,
-  totalCuotas:360,
-  pagadasBase:8
+  banco:"",
+  saldoUF:0,
+  cuotaUF:0,
+  tasa:0,
+  totalCuotas:0,
+  pagadasBase:0
 };
 
 const creditoConsumo={
-  banco:"BCI",
-  saldoCLP:8667989,
-  cuotaCLP:307363,
-  tasa:1.09,
-  totalCuotas:48,
-  pagadasBase:14
+  banco:"",
+  saldoCLP:0,
+  cuotaCLP:0,
+  tasa:0,
+  totalCuotas:0,
+  pagadasBase:0
 };
 
 let gc=null;
 let txData=null;
+let shaCreditos=null;
 const FECHA_INICIO_CREDITOS="2026-04-15";
+
+function creditoVacio(tipo){
+  return tipo==="hipotecario"
+    ? {banco:"",saldoUF:0,cuotaUF:0,tasa:0,totalCuotas:0,pagadasBase:0}
+    : {banco:"",saldoCLP:0,cuotaCLP:0,tasa:0,totalCuotas:0,pagadasBase:0};
+}
+function tieneCredito(tipo){
+  const c=tipo==="hipotecario"?creditoHipotecario:creditoConsumo;
+  const saldo=tipo==="hipotecario"?c.saldoUF:c.saldoCLP;
+  const cuota=tipo==="hipotecario"?c.cuotaUF:c.cuotaCLP;
+  return !!(c.banco||saldo||cuota||c.totalCuotas);
+}
 
 function getCreditoSeleccionado(){
   const tipo=document.getElementById("credito-select").value;
   const uf=parseFloat(document.getElementById("uf").value)||0;
   if(tipo==="hipotecario"){
     return {
-      nombre:`Hipotecario - ${creditoHipotecario.banco}`,
+      nombre:creditoHipotecario.banco?`Hipotecario - ${creditoHipotecario.banco}`:"Hipotecario",
       moneda:"UF",
       saldo:getSaldoActual("hipotecario",uf),
       cuota:creditoHipotecario.cuotaUF,
@@ -137,7 +199,7 @@ function getCreditoSeleccionado(){
     };
   }
   return {
-    nombre:`Consumo - ${creditoConsumo.banco}`,
+    nombre:creditoConsumo.banco?`Consumo - ${creditoConsumo.banco}`:"Consumo",
     moneda:"CLP",
     saldo:getSaldoActual("consumo",uf),
     cuota:creditoConsumo.cuotaCLP,
@@ -155,6 +217,13 @@ async function ghGet(file){
   if(r.status===401)throw new Error("Token invalido");
   if(!r.ok)throw new Error("GitHub "+r.status+" al leer "+file);
   return r.json();
+}
+async function ghPut(file,data,sha,msg){
+  const body={message:msg,content:btoa(unescape(encodeURIComponent(JSON.stringify(data,null,2))))};
+  if(sha)body.sha=sha;
+  const r=await fetch(gh(file),{method:"PUT",headers:ghH(),body:JSON.stringify(body)});
+  if(!r.ok)throw new Error("Error guardando "+file+" ("+r.status+")");
+  return (await r.json()).content.sha;
 }
 function decodeGitHubJsonFile(content){
   const binary=atob(content.replace(/\n/g,""));
@@ -211,9 +280,22 @@ async function cargarPagosCreditos(){
   try{
     gc=loadCfg();
     if(!gc)return;
+    const creditosFile=await ghGet("creditos_data.json");
+    if(creditosFile){
+      shaCreditos=creditosFile.sha;
+      const creditosData=decodeGitHubJsonFile(creditosFile.content);
+      Object.assign(creditoHipotecario,creditoVacio("hipotecario"),creditosData.hipotecario||{});
+      Object.assign(creditoConsumo,creditoVacio("consumo"),creditosData.consumo||{});
+    }else{
+      const init={hipotecario:creditoVacio("hipotecario"),consumo:creditoVacio("consumo")};
+      Object.assign(creditoHipotecario,init.hipotecario);
+      Object.assign(creditoConsumo,init.consumo);
+      shaCreditos=await ghPut("creditos_data.json",init,null,"init creditos");
+    }
     const dataFile=await ghGet("data.json");
     if(!dataFile)return;
     txData=decodeGitHubJsonFile(dataFile.content);
+    cargarFormularioCredito();
     render();
   }catch(e){
     console.warn("No se pudo sincronizar el avance de creditos:",e.message);
@@ -232,6 +314,69 @@ async function cargarUF(){
 }
 
 function clp(n){return "$"+Math.round(n).toLocaleString("es-CL");}
+function showMsg(id,m,ok){
+  const e=document.getElementById(id);
+  e.textContent=m;
+  e.className="msg "+(ok?"ok":"err");
+  setTimeout(()=>{e.className="msg";},3000);
+}
+function cargarFormularioCredito(){
+  const tipo=document.getElementById("cfg-tipo").value;
+  const c=tipo==="hipotecario"?creditoHipotecario:creditoConsumo;
+  document.getElementById("cfg-saldo-lbl").textContent=tipo==="hipotecario"?"Saldo total (UF)":"Saldo total (CLP)";
+  document.getElementById("cfg-cuota-lbl").textContent=tipo==="hipotecario"?"Cuota mensual (UF)":"Cuota mensual (CLP)";
+  document.getElementById("cfg-banco").value=c.banco||"";
+  document.getElementById("cfg-saldo").value=tipo==="hipotecario"?(c.saldoUF||""):(c.saldoCLP||"");
+  document.getElementById("cfg-cuota").value=tipo==="hipotecario"?(c.cuotaUF||""):(c.cuotaCLP||"");
+  document.getElementById("cfg-tasa").value=c.tasa||"";
+  document.getElementById("cfg-total").value=c.totalCuotas||"";
+  document.getElementById("cfg-pagadas").value=c.pagadasBase||"";
+}
+async function guardarCredito(){
+  try{
+    if(!gc)gc=loadCfg();
+    if(!gc)throw new Error("Configura GitHub antes de guardar");
+    const tipo=document.getElementById("cfg-tipo").value;
+    const banco=document.getElementById("cfg-banco").value.trim();
+    const saldo=parseFloat(document.getElementById("cfg-saldo").value)||0;
+    const cuota=parseFloat(document.getElementById("cfg-cuota").value)||0;
+    const tasa=parseFloat(document.getElementById("cfg-tasa").value)||0;
+    const totalCuotas=parseInt(document.getElementById("cfg-total").value)||0;
+    const pagadasBase=parseInt(document.getElementById("cfg-pagadas").value)||0;
+    if(!banco||!saldo||!cuota||!totalCuotas){
+      showMsg("cfg-msg","Completa banco, saldo, cuota y total de cuotas",false);
+      return;
+    }
+    if(tipo==="hipotecario"){
+      Object.assign(creditoHipotecario,{banco,saldoUF:saldo,cuotaUF:cuota,tasa,totalCuotas,pagadasBase});
+    }else{
+      Object.assign(creditoConsumo,{banco,saldoCLP:saldo,cuotaCLP:cuota,tasa,totalCuotas,pagadasBase});
+    }
+    const payload={hipotecario:creditoHipotecario,consumo:creditoConsumo};
+    shaCreditos=await ghPut("creditos_data.json",payload,shaCreditos,"update creditos");
+    cargarFormularioCredito();
+    render();
+    showMsg("cfg-msg","Credito guardado",true);
+  }catch(e){
+    showMsg("cfg-msg","Error: "+e.message,false);
+  }
+}
+async function limpiarCredito(){
+  try{
+    if(!gc)gc=loadCfg();
+    if(!gc)throw new Error("Configura GitHub antes de guardar");
+    const tipo=document.getElementById("cfg-tipo").value;
+    if(tipo==="hipotecario")Object.assign(creditoHipotecario,creditoVacio("hipotecario"));
+    else Object.assign(creditoConsumo,creditoVacio("consumo"));
+    const payload={hipotecario:creditoHipotecario,consumo:creditoConsumo};
+    shaCreditos=await ghPut("creditos_data.json",payload,shaCreditos,"clear credito");
+    cargarFormularioCredito();
+    render();
+    showMsg("cfg-msg","Credito limpiado",true);
+  }catch(e){
+    showMsg("cfg-msg","Error: "+e.message,false);
+  }
+}
 
 function render(){
   const uf=parseFloat(document.getElementById("uf").value);
@@ -240,36 +385,37 @@ function render(){
   const saldoHipUF=getSaldoActual("hipotecario",uf);
   const saldoConsumo=getSaldoActual("consumo",uf);
   const saldoHip=saldoHipUF*uf;
-  const cuotaHip=creditoHipotecario.cuotaUF*uf;
+  const cuotaHip=tieneCredito("hipotecario")?creditoHipotecario.cuotaUF*uf:0;
+  const cuotaConsumo=tieneCredito("consumo")?creditoConsumo.cuotaCLP:0;
   const pagadasHip=getPagadasActuales("hipotecario");
   const pagadasConsumo=getPagadasActuales("consumo");
 
   document.getElementById("resumen").innerHTML=`
     <div class="metrics">
       <div class="metric"><div class="metric-label">Deuda total</div><div class="metric-value">${clp(saldoHip+saldoConsumo)}</div></div>
-      <div class="metric"><div class="metric-label">Carga mensual</div><div class="metric-value">${clp(cuotaHip+creditoConsumo.cuotaCLP)}</div></div>
+      <div class="metric"><div class="metric-label">Carga mensual</div><div class="metric-value">${clp(cuotaHip+cuotaConsumo)}</div></div>
     </div>
   `;
 
-  document.getElementById("hipotecario").innerHTML=`
+  document.getElementById("hipotecario").innerHTML=tieneCredito("hipotecario")?`
     <div class="card-header"><span class="card-title">Credito hipotecario - ${creditoHipotecario.banco}</span></div>
     <div class="detail-grid">
       <div class="detail-item"><div class="detail-label">Saldo</div><div class="detail-value">${clp(saldoHip)}</div></div>
       <div class="detail-item"><div class="detail-label">Dividendo</div><div class="detail-value">${clp(cuotaHip)}</div></div>
-      <div class="detail-item"><div class="detail-label">Tasa</div><div class="detail-value">${creditoHipotecario.tasa}%</div></div>
+      <div class="detail-item"><div class="detail-label">Tasa</div><div class="detail-value">${creditoHipotecario.tasa}% mensual</div></div>
       <div class="detail-item"><div class="detail-label">Progreso</div><div class="detail-value">${pagadasHip}/${creditoHipotecario.totalCuotas}</div></div>
     </div>
-  `;
+  `:'<div class="card-header"><span class="card-title">Credito hipotecario</span></div><div class="empty">Sin credito configurado</div>';
 
-  document.getElementById("consumo").innerHTML=`
+  document.getElementById("consumo").innerHTML=tieneCredito("consumo")?`
     <div class="card-header"><span class="card-title">Credito de consumo - ${creditoConsumo.banco}</span></div>
     <div class="detail-grid">
       <div class="detail-item"><div class="detail-label">Saldo</div><div class="detail-value">${clp(saldoConsumo)}</div></div>
-      <div class="detail-item"><div class="detail-label">Cuota</div><div class="detail-value">${clp(creditoConsumo.cuotaCLP)}</div></div>
+      <div class="detail-item"><div class="detail-label">Cuota</div><div class="detail-value">${clp(cuotaConsumo)}</div></div>
       <div class="detail-item"><div class="detail-label">Tasa</div><div class="detail-value">${creditoConsumo.tasa}% mensual</div></div>
       <div class="detail-item"><div class="detail-label">Progreso</div><div class="detail-value">${pagadasConsumo}/${creditoConsumo.totalCuotas}</div></div>
     </div>
-  `;
+  `:'<div class="card-header"><span class="card-title">Credito de consumo</span></div><div class="empty">Sin credito configurado</div>';
 }
 
 function simularCredito(saldo,cuota,tasa){
@@ -295,6 +441,7 @@ function simularPrepagoPro(){
   const modo=document.getElementById("modo").value;
   const credito=getCreditoSeleccionado();
 
+  if(!tieneCredito(document.getElementById("credito-select").value))return alert("Primero configura ese credito");
   if(!prepago)return alert("Completa datos");
   if(credito.moneda==="UF"&&!uf)return alert("Completa el valor UF");
 
